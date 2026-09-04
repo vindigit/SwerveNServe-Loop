@@ -1,0 +1,24 @@
+{
+  "name": "swerve-n-serve",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PS2-liminal urban courier game \u2014 Crazy-Taxi-on-foot demo. Three.js + TypeScript + Vite.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.169.0",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.8"
+  }
+}
