@@ -152,15 +152,21 @@ export class JobDirector {
     this.stopped = false;
   }
 
-  update(dt: number, playerPosition: THREE.Vector3, cameraPosition: THREE.Vector3): void {
+  update(
+    dt: number,
+    playerPosition: THREE.Vector3,
+    cameraPosition: THREE.Vector3,
+    elapsedDt: number = dt
+  ): void {
     if (this.disposed) return;
     const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
+    const elapsedStep = Number.isFinite(elapsedDt) && elapsedDt > 0 ? elapsedDt : 0;
 
     if (!this.stopped) {
       if (!this.active) {
         this.offer(playerPosition);
       } else {
-        this.active.elapsed += step;
+        this.active.elapsed += elapsedStep;
         this.checkTriggers(playerPosition);
       }
     }

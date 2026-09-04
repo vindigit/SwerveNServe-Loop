@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { CoronaConfig, JobConfig, RunConfig, ScoreConfig } from "@/config/gameConfig";
 import { eventBus } from "@/core/EventBus";
+import { resolveFrameTiming } from "@/core/frameTiming";
 import { Rng } from "@/core/rng";
 import { loadBest, loadLook } from "@/core/storage";
 import type { ActiveJob, PayoutBreakdown } from "@/core/types";
@@ -398,6 +399,27 @@ describe("RunTimer", () => {
     timer.start();
     expect(timer.getRemainingSeconds()).toBe(RunConfig.durationSeconds);
     expect(timer.isUrgent()).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Frame timing
+ * ------------------------------------------------------------------ */
+
+describe("frame timing", () => {
+  it("caps physics after a hitch without gifting the active run clock time", () => {
+    const timing = resolveFrameTiming(0.3, true);
+    expect(timing.physicsDt).toBe(RunConfig.maxDeltaSeconds);
+    expect(timing.runDt).toBeCloseTo(0.3, 6);
+  });
+
+  it("advances neither simulation nor the run clock while paused", () => {
+    expect(resolveFrameTiming(10, false)).toEqual({ physicsDt: 0, runDt: 0 });
+  });
+
+  it("rejects invalid frame deltas", () => {
+    expect(resolveFrameTiming(Number.NaN, true)).toEqual({ physicsDt: 0, runDt: 0 });
+    expect(resolveFrameTiming(-1, true)).toEqual({ physicsDt: 0, runDt: 0 });
   });
 });
 

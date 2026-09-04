@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { Courier, LOOK_COUNTS, type LookPreset } from "@/character/Courier";
 import { RenderConfig, RunConfig } from "@/config/gameConfig";
 import { eventBus } from "@/core/EventBus";
+import { resolveFrameTiming } from "@/core/frameTiming";
 import { InputManager } from "@/core/InputManager";
 import { loadBest, loadLook, saveBest, saveLook } from "@/core/storage";
 import type { GamePhase, RunSummary } from "@/core/types";
@@ -227,21 +228,19 @@ export class Game {
     if (!this.running) return;
     this.rafHandle = requestAnimationFrame(this.tick);
 
-    // Clamped so a tab-out cannot produce one enormous physics step. The run
-    // clock is paused separately — clamping here must never gift time.
-    const dt = Math.min(this.clock.getDelta(), RunConfig.maxDeltaSeconds);
+    const timing = resolveFrameTiming(this.clock.getDelta(), this.timer.isRunning());
 
     this.input.update();
 
-    if (this.phase === "playing") this.updatePlaying(dt);
-    else this.updateMenus(dt);
+    if (this.phase === "playing") this.updatePlaying(timing.physicsDt, timing.runDt);
+    else this.updateMenus(timing.physicsDt);
 
     this.renderer.info.reset();
     this.renderer.render(this.scene, this.camera);
   };
 
-  private updatePlaying(dt: number): void {
-    this.player.update(dt, this.input.getMove(), this.follow.getYaw());
+  private updatePlaying(physicsDt: number, runDt: number): void {
+    this.player.update(physicsDt, this.input.getMove(), this.follow.getYaw());
     const state = this.player.getState();
 
     // Out-of-world backstop: a courier who finds a seam gets put back on the
@@ -253,13 +252,13 @@ export class Game {
       return;
     }
 
-    this.follow.update(dt, state, this.input.getLook());
+    this.follow.update(physicsDt, state, this.input.getLook());
     this.placeCourier(state.position, state.facingRad);
-    this.courier.update(dt, this.player.getLocomotion(), state.grounded);
+    this.courier.update(physicsDt, this.player.getLocomotion(), state.grounded);
     this.applyCourierLight(state.position);
 
-    this.timer.update(dt);
-    this.jobs.update(dt, state.position, this.camera.position);
+    this.timer.update(runDt);
+    this.jobs.update(physicsDt, state.position, this.camera.position, runDt);
     this.hud.update(this.camera, state.position);
   }
 
