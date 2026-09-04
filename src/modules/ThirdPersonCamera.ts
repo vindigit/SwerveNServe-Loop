@@ -4,6 +4,22 @@ import type { PlayerState } from "@/modules/PlayerController";
 import type { CollisionWorld } from "@/world/CollisionWorld";
 
 /**
+ * Put a camera at the desired endpoint unless a wall interrupts the shot.
+ * Shared by cinematic/menu cameras that do not need the follow camera's eased
+ * boom recovery.
+ */
+export function resolveObstructedCameraPosition(
+  collision: CollisionWorld,
+  focus: THREE.Vector3,
+  desired: THREE.Vector3,
+  padding: number,
+  out: THREE.Vector3
+): THREE.Vector3 {
+  const clear = collision.segmentHit(focus, desired, padding);
+  return out.copy(focus).lerp(desired, clear);
+}
+
+/**
  * ThirdPersonCamera
  *
  * A boom camera on a smoothed pivot. Close, shoulder-height, aimed at the

@@ -196,7 +196,17 @@ export class PlayerController {
     }
 
     // --- Gravity ------------------------------------------------------------
-    velocity.y += PlayerConfig.gravity * dt;
+    // A single symmetrical parabola felt mushy. Held jumps get a slightly
+    // gentler rise, releasing early cuts that rise, and the descent is brisk.
+    // This preserves a small traversal hop while giving the button a useful
+    // press-versus-hold distinction on keyboard and gamepad.
+    const gravityMultiplier =
+      velocity.y > 0
+        ? move.jump
+          ? PlayerConfig.jumpHoldGravityMultiplier
+          : PlayerConfig.jumpCutGravityMultiplier
+        : PlayerConfig.fallGravityMultiplier;
+    velocity.y += PlayerConfig.gravity * gravityMultiplier * dt;
     if (velocity.y < TERMINAL_VELOCITY) velocity.y = TERMINAL_VELOCITY;
 
     // --- Move the capsule. All collision, sliding and step-up lives there. --

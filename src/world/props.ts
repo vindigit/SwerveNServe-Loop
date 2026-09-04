@@ -82,6 +82,17 @@ function cyl(
   return { geometry, color: new THREE.Color(hex) };
 }
 
+/** A narrow rectangular brace joining two points in the local Y/Z plane. */
+function braceYz(x: number, y0: number, z0: number, y1: number, z1: number, hex: number): Part {
+  const dy = y1 - y0;
+  const dz = z1 - z0;
+  const length = Math.hypot(dy, dz);
+  const geometry = new THREE.BoxGeometry(0.08, length, 0.08);
+  geometry.rotateX(Math.atan2(dz, dy));
+  geometry.translate(x, (y0 + y1) / 2, (z0 + z1) / 2);
+  return { geometry, color: new THREE.Color(hex) };
+}
+
 /** Merge parts into one geometry, baking each part's colour into vertices. */
 function merge(parts: Part[]): THREE.BufferGeometry {
   const positions: number[] = [];
@@ -184,7 +195,7 @@ const SPECS: Record<PropKind, PropSpec> = {
       ]),
   },
 
-  /** Fire escape: the courtyard's signature silhouette. Cosmetic, no collision. */
+  /** Fire escape: wall-mounted, visibly bracketed, and cosmetic. */
   fireEscape: {
     build: () => {
       const parts: Part[] = [];
@@ -194,11 +205,20 @@ const SPECS: Record<PropKind, PropSpec> = {
         parts.push(box(2.6, 0.05, 0.05, 0, y + 0.95, 1.12, STEEL));
         parts.push(box(0.05, 0.95, 0.05, -1.28, y + 0.48, 1.12, STEEL));
         parts.push(box(0.05, 0.95, 0.05, 1.28, y + 0.48, 1.12, STEEL));
-        // Ladder up to the next landing.
-        parts.push(box(0.05, 3.0, 0.05, 0.9, y + 1.6, 0.95, STEEL));
-        parts.push(box(0.05, 3.0, 0.05, 1.35, y + 1.6, 0.95, STEEL));
-        for (let r = 0; r < 6; r++) {
-          parts.push(box(0.5, 0.04, 0.04, 1.12, y + 0.4 + r * 0.5, 0.95, STEEL));
+        // Two wall plates and diagonal brackets make the platform's support
+        // readable from street level instead of looking suspended in space.
+        for (const x of [-0.92, 0.92]) {
+          parts.push(box(0.12, 1.0, 0.08, x, y - 0.5, 0.04, DARK_STEEL));
+          parts.push(braceYz(x, y - 0.92, 0.08, y - 0.08, 1.0, STEEL));
+        }
+        // Ladder only where another landing exists. The old third ladder rose
+        // above the roofline and terminated in empty air.
+        if (level < 2) {
+          parts.push(box(0.05, 3.0, 0.05, 0.9, y + 1.6, 0.95, STEEL));
+          parts.push(box(0.05, 3.0, 0.05, 1.35, y + 1.6, 0.95, STEEL));
+          for (let r = 0; r < 6; r++) {
+            parts.push(box(0.5, 0.04, 0.04, 1.12, y + 0.4 + r * 0.5, 0.95, STEEL));
+          }
         }
       }
       return merge(parts);

@@ -61,7 +61,19 @@ export const LOOK_COUNTS = {
 /** 12 Hz pose grid — the era's animation rate, and the reason it reads PS2. */
 const ANIM_HZ = 12;
 
-type PartName = "skin" | "face" | "hair" | "shirt" | "pants" | "shoes" | "bag";
+type PartName =
+  | "skin"
+  | "face"
+  | "hair"
+  | "shirt"
+  | "pants"
+  | "shoes"
+  | "bag"
+  | "parcel"
+  | "parcelTape";
+
+/** The courier root is the capsule's soles, not the model's hips. */
+const TORSO_REST_Y = 1.09;
 
 function faceTexture(skin: number): THREE.Texture {
   // 128×128 painted face: brow, eyes, nose shadow, mouth. No modelled features.
@@ -121,6 +133,7 @@ export class Courier {
 
   private readonly joints: Record<"armL" | "armR" | "legL" | "legR" | "torso" | "head", Joint>;
   private readonly bagGroup = new THREE.Group();
+  private readonly parcelGroup = new THREE.Group();
 
   private look: LookPreset = { head: 0, shirt: 0, pants: 0, shoes: 0 };
   private animClock = 0;
@@ -129,7 +142,9 @@ export class Courier {
 
   constructor(look?: Partial<LookPreset>) {
     const material = (name: PartName, color: number, map?: THREE.Texture): THREE.MeshBasicMaterial => {
-      const m = new THREE.MeshBasicMaterial({ color, map, fog: true });
+      const params: THREE.MeshBasicMaterialParameters = { color, fog: true };
+      if (map) params.map = map;
+      const m = new THREE.MeshBasicMaterial(params);
       this.materials.set(name, m);
       this.baseColors.set(name, new THREE.Color(color));
       return m;
@@ -141,6 +156,8 @@ export class Courier {
     const pantsMat = material("pants", 0x8a7a5c);
     const shoesMat = material("shoes", 0xd8d5cc);
     const bagMat = material("bag", 0x4a4038);
+    const parcelMat = material("parcel", 0x8b5b32);
+    const parcelTapeMat = material("parcelTape", 0xc7a36a);
 
     const track = (g: THREE.BufferGeometry): THREE.BufferGeometry => {
       this.geometries.push(g);
@@ -149,7 +166,10 @@ export class Courier {
 
     // --- torso: tapered box, broad clothing silhouette
     const torso = new THREE.Group();
-    torso.position.y = 0.92;
+    // With the torso at 0.92 the shoe geometry extended 0.17 m below the
+    // capsule's feet and visibly sank into every pavement. This value puts the
+    // bottom of both shoes exactly on the actor root at rest.
+    torso.position.y = TORSO_REST_Y;
     const chest = new THREE.Mesh(track(new THREE.BoxGeometry(0.46, 0.62, 0.28)), shirtMat);
     chest.position.y = 0.31;
     const hips = new THREE.Mesh(track(new THREE.BoxGeometry(0.46, 0.24, 0.28)), pantsMat);
@@ -234,6 +254,23 @@ export class Courier {
     this.bagGroup.add(strap, satchel);
     torso.add(this.bagGroup);
 
+    // The pickup is a real carried object, separate from the world marker.
+    // It sits between the tucked forearms and follows the stepped body pose.
+    const parcel = new THREE.Mesh(track(new THREE.BoxGeometry(0.42, 0.28, 0.32)), parcelMat);
+    const tapeVertical = new THREE.Mesh(
+      track(new THREE.BoxGeometry(0.075, 0.286, 0.326)),
+      parcelTapeMat
+    );
+    const tapeHorizontal = new THREE.Mesh(
+      track(new THREE.BoxGeometry(0.426, 0.075, 0.326)),
+      parcelTapeMat
+    );
+    this.parcelGroup.position.set(0, 0.29, 0.34);
+    this.parcelGroup.name = "carried-parcel";
+    this.parcelGroup.add(parcel, tapeVertical, tapeHorizontal);
+    this.parcelGroup.visible = false;
+    torso.add(this.parcelGroup);
+
     this.object3d.add(torso);
     this.joints = {
       torso: { group: torso, restX: 0 },
@@ -277,13 +314,17 @@ export class Courier {
 
   setCarrying(carrying: boolean): void {
     this.carrying = carrying;
+    this.parcelGroup.visible = carrying;
+    // Force the arm pose to react on the next update even within the same
+    // 12 Hz animation cell as the pickup/delivery event.
+    this.stepped = -1;
   }
 
   /**
    * `locomotion` is 0 (idle) to 1 (full sprint). The pose is evaluated on the
    * 12 Hz grid; between grid steps nothing moves, which is the point.
    */
-  update(dt: number, locomotion: number, grounded: boolean): void {
+  update(dt: number, locomotion: number, grounded: boolean, verticalSpeed = 0): void {
     const speed = THREE.MathUtils.clamp(locomotion, 0, 1);
     this.animClock += dt * (0.9 + speed * 2.6);
     const grid = Math.floor(this.animClock * ANIM_HZ);
@@ -295,11 +336,15 @@ export class Courier {
     const j = this.joints;
 
     if (!grounded) {
-      j.legL.group.rotation.x = -0.35;
-      j.legR.group.rotation.x = 0.25;
-      j.armL.group.rotation.x = -0.9;
-      j.armR.group.rotation.x = -0.9;
-      j.torso.group.rotation.x = 0.1;
+      const rising = verticalSpeed >= 0;
+      j.legL.group.rotation.x = rising ? -0.52 : -0.22;
+      j.legR.group.rotation.x = rising ? 0.34 : 0.5;
+      j.armL.group.rotation.x = this.carrying ? -1.25 : rising ? -1.0 : -0.62;
+      j.armR.group.rotation.x = this.carrying ? -1.25 : rising ? -1.0 : -0.62;
+      j.armL.group.rotation.z = this.carrying ? 0.42 : 0.14;
+      j.armR.group.rotation.z = this.carrying ? -0.42 : -0.14;
+      j.torso.group.rotation.x = rising ? 0.08 : -0.04;
+      j.torso.group.position.y = TORSO_REST_Y;
       return;
     }
 
@@ -321,7 +366,7 @@ export class Courier {
 
     // Lean into a sprint, and bob on the stride — stiff, not smooth.
     j.torso.group.rotation.x = speed * 0.22;
-    j.torso.group.position.y = 0.92 + Math.abs(Math.sin(phase)) * 0.035 * speed;
+    j.torso.group.position.y = TORSO_REST_Y + Math.abs(Math.sin(phase)) * 0.035 * speed;
     j.head.group.rotation.x = -speed * 0.16;
   }
 

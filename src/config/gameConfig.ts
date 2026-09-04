@@ -51,9 +51,15 @@ export const PlayerConfig = {
   height: 1.75,
   /** Anything this tall or shorter is walked onto, not bumped into. */
   stepHeight: 0.42,
-  gravity: -24,
-  /** Small hop, enough for kerbs and low walls; not a platformer jump. */
-  jumpSpeed: 6.2,
+  gravity: -26,
+  /**
+   * A readable one-metre hop. Holding jump gives a rounder arc; releasing it
+   * early trims the rise, and falling is deliberately quicker than rising.
+   */
+  jumpSpeed: 6.8,
+  jumpHoldGravityMultiplier: 0.82,
+  jumpCutGravityMultiplier: 1.75,
+  fallGravityMultiplier: 1.22,
   /** Grace period after leaving ground where a jump still registers. */
   coyoteSeconds: 0.12,
   respawnFadeSeconds: 0.35,

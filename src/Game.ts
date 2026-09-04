@@ -12,7 +12,7 @@ import { PlayerController } from "@/modules/PlayerController";
 import { RunTimer } from "@/modules/RunTimer";
 import { ScoreSystem } from "@/modules/ScoreSystem";
 import { StreakSystem } from "@/modules/StreakSystem";
-import { ThirdPersonCamera } from "@/modules/ThirdPersonCamera";
+import { ThirdPersonCamera, resolveObstructedCameraPosition } from "@/modules/ThirdPersonCamera";
 import { HUD } from "@/ui/HUD";
 import { LookScreen, ResultsScreen, TitleScreen } from "@/ui/Screens";
 import { CollisionWorld } from "@/world/CollisionWorld";
@@ -31,6 +31,7 @@ import type { NeighborhoodBuild } from "@/world/types";
 
 /** How long a menu camera takes to drift across its arc, in seconds. */
 const MENU_ORBIT_PERIOD = 90;
+const MENU_CAMERA_PADDING = 0.75;
 
 export class Game {
   private readonly renderer: THREE.WebGLRenderer;
@@ -65,6 +66,8 @@ export class Game {
   private look: LookPreset;
 
   private readonly lightSample = new THREE.Color();
+  private readonly menuFocus = new THREE.Vector3(2, 3, -9.4);
+  private readonly menuDesired = new THREE.Vector3();
   private readonly onResize = (): void => this.resize();
   private readonly onVisibility = (): void => this.handleVisibility();
 
@@ -258,7 +261,7 @@ export class Game {
 
     this.follow.update(physicsDt, state, this.input.getLook());
     this.placeCourier(state.position, state.facingRad);
-    this.courier.update(physicsDt, this.player.getLocomotion(), state.grounded);
+    this.courier.update(physicsDt, this.player.getLocomotion(), state.grounded, state.velocity.y);
     this.applyCourierLight(state.position);
 
     this.timer.update(runDt);
@@ -286,8 +289,19 @@ export class Game {
   private menuCamera(): void {
     const t = (this.menuClock / MENU_ORBIT_PERIOD) * Math.PI * 2;
     const radius = 26;
-    this.camera.position.set(-14 + Math.cos(t) * radius, 7.5, 6 + Math.sin(t) * radius * 0.45);
-    this.camera.lookAt(2, 3.0, -11);
+    this.menuDesired.set(-14 + Math.cos(t) * radius, 7.5, 6 + Math.sin(t) * radius * 0.45);
+
+    // The cinematic orbit used to ignore the collision world and travel
+    // straight through hollow building shells. Clamp the desired endpoint to
+    // the first wall hit, with enough clearance for the near plane.
+    resolveObstructedCameraPosition(
+      this.collision,
+      this.menuFocus,
+      this.menuDesired,
+      MENU_CAMERA_PADDING,
+      this.camera.position
+    );
+    this.camera.lookAt(this.menuFocus);
     this.placeCourier(this.world.spawn.position, this.world.spawn.facingRad);
     this.courier.update(1 / 60, 0, true);
     this.applyCourierLight(this.world.spawn.position);
