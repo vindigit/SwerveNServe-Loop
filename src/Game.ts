@@ -7,6 +7,7 @@ import { InputManager } from "@/core/InputManager";
 import { loadBest, loadLook, saveBest, saveLook } from "@/core/storage";
 import type { GamePhase, RunSummary } from "@/core/types";
 import { JobDirector } from "@/modules/JobDirector";
+import { ObjectiveArrow } from "@/modules/ObjectiveArrow";
 import { PlayerController } from "@/modules/PlayerController";
 import { RunTimer } from "@/modules/RunTimer";
 import { ScoreSystem } from "@/modules/ScoreSystem";
@@ -45,6 +46,7 @@ export class Game {
   private readonly follow: ThirdPersonCamera;
   private readonly courier: Courier;
   private readonly jobs: JobDirector;
+  private readonly objectiveArrow: ObjectiveArrow;
   private readonly timer: RunTimer;
   private readonly score: ScoreSystem;
   private readonly streak: StreakSystem;
@@ -98,12 +100,13 @@ export class Game {
     this.streak = new StreakSystem();
     this.score = new ScoreSystem(() => this.streak.getMultiplier());
     this.jobs = new JobDirector(this.world.locations, this.collision, this.scene);
+    this.objectiveArrow = new ObjectiveArrow(this.scene);
     // One place decides what a delivery is worth: score applies the streak.
     this.jobs.onComputePayout = (job) => this.score.award(job);
     this.timer.onExpire = () => this.endRun();
 
     /* --- UI ----------------------------------------------------------- */
-    this.hud = new HUD(hudRoot);
+    this.hud = new HUD(hudRoot, this.world.colliders);
     this.title = new TitleScreen(hudRoot);
     this.lookScreen = new LookScreen(hudRoot);
     this.results = new ResultsScreen(hudRoot);
@@ -174,6 +177,7 @@ export class Game {
     this.streak.reset();
     this.timer.reset();
     this.jobs.reset();
+    this.objectiveArrow.reset();
     this.hud.reset();
 
     this.follow.snapTo(this.player.getState());
@@ -259,7 +263,8 @@ export class Game {
 
     this.timer.update(runDt);
     this.jobs.update(physicsDt, state.position, this.camera.position, runDt);
-    this.hud.update(this.camera, state.position);
+    this.objectiveArrow.update(physicsDt, state.position);
+    this.hud.update(state.position, state.facingRad);
   }
 
   private updateMenus(dt: number): void {
@@ -434,6 +439,7 @@ export class Game {
     document.removeEventListener("visibilitychange", this.onVisibility);
     eventBus.reset();
     this.jobs.dispose();
+    this.objectiveArrow.dispose();
     this.streak.dispose();
     this.input.dispose();
     this.hud.dispose();

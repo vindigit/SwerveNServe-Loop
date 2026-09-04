@@ -21,9 +21,9 @@ import type { CollisionWorld } from "@/world/CollisionWorld";
  *      gradient: near-white core, category colour through the body, fully
  *      transparent at the edge. Additive, unlit, no depth write, no fog.
  *
- * What this deliberately is NOT: no beam, no light column, no ground ring, no
- * particles, no sparks, no outline, no floating arrow, no world-space prompt, no
- * volumetric cone, no real PointLight. Those are all a later era's vocabulary.
+ * What this deliberately is NOT: no beam, light column, ground ring, particles,
+ * arrow, prompt, volumetric cone or real PointLight. Navigation owns its own
+ * player-centred arrow; the pickup remains the era-correct object plus corona.
  *
  * Occlusion: an additive billboard with `depthWrite: false` will happily bleed
  * around and through geometry — a corona glowing through a rowhouse ruins the

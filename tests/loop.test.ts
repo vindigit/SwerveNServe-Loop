@@ -8,6 +8,7 @@ import { Rng } from "@/core/rng";
 import { loadBest, loadLook } from "@/core/storage";
 import type { ActiveJob, PayoutBreakdown } from "@/core/types";
 import { JobDirector, computeParSeconds, selectJobPair } from "@/modules/JobDirector";
+import { ObjectiveArrow } from "@/modules/ObjectiveArrow";
 import { RunTimer } from "@/modules/RunTimer";
 import {
   ScoreSystem,
@@ -18,6 +19,7 @@ import {
 } from "@/modules/ScoreSystem";
 import { PickupMarker, disposeSharedPickupAssets } from "@/modules/PickupMarker";
 import { StreakSystem } from "@/modules/StreakSystem";
+import { worldOffsetToMinimap } from "@/ui/Minimap";
 import { CollisionWorld } from "@/world/CollisionWorld";
 import type { WorldLocation } from "@/world/types";
 
@@ -71,6 +73,38 @@ function makeJob(overrides: Partial<ActiveJob> = {}): ActiveJob {
 function emptyCollision(): CollisionWorld {
   return new CollisionWorld([], { minX: -200, maxX: 200, minZ: -200, maxZ: 200 });
 }
+
+describe("minimap projection", () => {
+  it("keeps forward targets above the player marker", () => {
+    expect(worldOffsetToMinimap(0, -10, 0, 1)).toEqual({ x: 0, y: -10 });
+  });
+
+  it("rotates the world beneath the fixed player marker", () => {
+    const projected = worldOffsetToMinimap(10, 0, Math.PI / 2, 1);
+    expect(projected.x).toBeCloseTo(0, 8);
+    expect(projected.y).toBeCloseTo(-10, 8);
+  });
+});
+
+describe("ObjectiveArrow", () => {
+  it("appears over the courier and points toward the active target", () => {
+    const scene = new THREE.Scene();
+    const arrow = new ObjectiveArrow(scene);
+    const target = makeLocation("target", 10, 0);
+    eventBus.emit("nav:target", {
+      target: { position: target.position, label: target.name, kind: "pickup", zone: target.zone },
+    });
+    arrow.update(0, new THREE.Vector3(0, 0, 0));
+
+    expect(arrow.object3d.visible).toBe(true);
+    expect(arrow.object3d.position.y).toBeCloseTo(3.25, 6);
+    expect(arrow.object3d.rotation.y).toBeCloseTo(-Math.PI / 2, 6);
+
+    eventBus.emit("nav:target", { target: null });
+    expect(arrow.object3d.visible).toBe(false);
+    arrow.dispose();
+  });
+});
 
 beforeEach(() => {
   eventBus.reset();
@@ -771,7 +805,7 @@ describe("PickupMarker", () => {
     marker.dispose();
   });
 
-  it("contains only the item and the billboard — no beam, ring or light", () => {
+  it("contains only the item and billboard — no beam, ring, arrow or light", () => {
     const marker = new PickupMarker("job", emptyCollision());
     let lights = 0;
     let meshes = 0;
@@ -783,7 +817,7 @@ describe("PickupMarker", () => {
       expect((o as THREE.Sprite).isSprite).toBeFalsy();
     });
     expect(lights).toBe(0);
-    expect(meshes).toBe(3); // parcel body + tape band + one corona
+    expect(meshes).toBe(3); // parcel body + tape + corona
     marker.dispose();
   });
 

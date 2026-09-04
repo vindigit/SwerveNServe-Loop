@@ -127,28 +127,50 @@ body {
   color: var(--cool);
 }
 
-/* Off-screen direction indicator. No minimap — you navigate by landmarks. */
-.hud-arrow {
+/* Rotating local street map. It shows geometry and the target, never the line. */
+.minimap {
   position: absolute;
-  top: 0;
-  left: 0;
+  left: 24px;
+  bottom: 24px;
+  width: 178px;
+  height: 178px;
+  border: 5px solid rgba(15, 16, 22, 0.94);
+  border-radius: 50%;
+  overflow: hidden;
+  background: #717178;
+  box-shadow: 0 0 0 2px rgba(236, 231, 221, 0.68), 0 4px 16px rgba(0, 0, 0, 0.75);
+}
+
+.minimap-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.minimap-player {
+  position: absolute;
+  left: 50%;
+  top: 50%;
   width: 0;
   height: 0;
-  margin: -18px 0 0 -16px;
-  border-left: 16px solid transparent;
-  border-right: 16px solid transparent;
-  border-top: 26px solid var(--amber);
-  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.9));
-  opacity: 0;
-  transition: opacity 0.2s;
+  transform: translate(-50%, -58%);
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 18px solid #f4f1e9;
+  filter: drop-shadow(0 1px 1px #000);
 }
 
-.hud-arrow.is-delivery {
-  border-top-color: var(--cool);
-}
-
-.hud-arrow.is-edge {
-  border-top-width: 30px;
+.minimap-north {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin: -9px 0 0 -6px;
+  color: #f4f1e9;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 18px;
+  text-shadow: 0 1px 2px #000;
 }
 
 .hud-toasts {

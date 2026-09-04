@@ -44,7 +44,7 @@ export interface RunSummary {
   previousBest: number;
 }
 
-/** What the HUD needs to draw the off-screen direction indicator. */
+/** What the HUD and minimap need to identify the active objective. */
 export interface NavTarget {
   position: THREE.Vector3;
   label: string;
